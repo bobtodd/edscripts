@@ -1,8 +1,17 @@
 #!/usr/bin/env python3.1
+# FileManip.py
+# A pared-down module containing some functions commonly used
+# to manipulate files containing education data.
 
-# preparatory function extract_fields()
-# return a list of the entries in each line
 def extract_fields(line):
+  """Return a list of the entries in each line.
+
+  WARNING: this function is elegant, but doesn't deal well
+  with field entries that themselves include commas, e.g.
+  'Washington, D.C.' will cause this function to split into
+  'Washington' and 'D.C.'.
+  """
+  
   fields = []
   field = ""
   quote = None
@@ -33,7 +42,15 @@ def extract_fields(line):
 
 import os
 
-def extract_chunk(infilename, outfilename, begin, end, period):
+def extract_chunk(infilename, outfilename, begin, end, period = None):
+  """Extract a group of lines from input file and write to output file.
+
+  Extract a contiguous sequence of lines, starting with
+  line number "begin" and ending with line number "end".
+  If this will produce an inordinately large output file,
+  the user can break it into sections of length "period".
+  """
+
   # open input file
   ifile = open( infilename, 'r')  # open file for reading
   
@@ -55,7 +72,7 @@ def extract_chunk(infilename, outfilename, begin, end, period):
   for line in ifile:
     if begin <= i <= end:
       data = extract_fields(line)
-      if data[0] != last and count >= period:
+      if data[0] != last and (period != None and count >= period):
         ofile.close()
         count = 0
         iter += 1
@@ -74,6 +91,14 @@ def extract_chunk(infilename, outfilename, begin, end, period):
 import sys, csv
 
 def get_csv_columns(infilename, headfilename=None):
+  """Take data from CSV file and read into a dict of columns.
+
+  Column headers become the dictionary keys and are read
+  from the first line of the input file, unless a header
+  file is specified, in which case the column names are
+  read from the header.
+  """
+  
   # open input file & header file (if different)
   ifile           = csv.reader(open(  infilename, 'r'))  # open file for reading
   hbasename, hext = os.path.splitext(headfilename)
@@ -122,6 +147,22 @@ def get_csv_columns(infilename, headfilename=None):
   return headers, data
 
 def extract_sequential(groupfield, seqfield, infilename, headfilename=None):
+  """Extract rows sequentially that share a common property.
+
+  Suppose several rows of data correspond to one value of
+  a particular property.  For example, the data for one
+  student is spread over several rows.  These rows all
+  share a "groupfield", here Student ID.  Suppose also
+  that each student has another property, e.g. the value
+  of a variabel DISADV, and we only
+  want to keep in our output file those students who
+  maintain a constant value of DISADV.  That is, if
+  a given student's DISADV value changes, we remove *all*
+  data regarding that student from the output.  The
+  property name "DISADV" is the "seqfield" we would
+  input to the function.
+  """
+  
   # open input file & prepare output file
   # with same name, plus 'seq' before the extension
   basename, ext  = os.path.splitext(infilename)
@@ -176,61 +217,4 @@ def extract_sequential(groupfield, seqfield, infilename, headfilename=None):
   for i in range(len(data[groupfield])):
     lineout = [data[title][i] for title in headers]
     ofile.writerow(lineout)
-
-
-from math import sqrt
-
-# correlation between two lists of data
-def corr(x, y):
-    assert len(x) == len(y), "lists must have equal length"
-    
-    xSum = sum(x)
-    ySum = sum(y)
-    
-    xSumSq = sum([item**2 for item in x])
-    ySumSq = sum([item**2 for item in y])
-    
-    iProd = 0.0
-    for i in range(len(x)):
-      iProd += x[i]*y[i]
-    
-    n = len(x)
-    
-    r = n*iProd - xSum*ySum
-    r /= sqrt(n*xSumSq - xSum**2) * sqrt(n*ySumSq - ySum**2)
-    return r
-
-# correlation between three lists of data
-# reduces to corr(x, y) if z == None
-# argument "data" is a list of lists
-def corr3(data):
-    x = data[0]
-    y = data[1]
-    z = data[2] if len(data) > 2 else None
-    
-    rxy = corr(x,y)
-    rxz = corr(x,z) if z != None else 0
-    ryz = corr(y,z) if z != None else 0
-    
-    # if no z-column, this gives rxy
-    rxy_z = rxy - rxz * ryz
-    rxy_z /= sqrt(1 - rxz**2) * sqrt(1 - ryz**2)
-
-    # use symmetry of correlation to speed things up
-    rzy = ryz
-    
-    # if no z-column, this gives zero
-    rxz_y = rxz - rxy * rzy
-    rxz_y /= sqrt(1 - rxy**2) * sqrt(1 - rzy**2)
-    
-    # speed up using symmetry
-    ryx = rxy
-    rzx = rxz
-    
-    # if no z-column, this gives zero
-    ryz_x = ryz - ryx * rzx
-    ryz_x /= sqrt(1 - ryx**2) * sqrt(1 - rzx**2)
-    
-    return (rxy_z, rxz_y, ryz_x)
-
 
