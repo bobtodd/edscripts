@@ -62,7 +62,7 @@ error = "Use --help option for assistance"
 # check for options
 if len(sys.argv) > 1:
     if sys.argv[1] in ('-h', '-help', '--help'):
-        print("Usage: ", sys.argv[0], " [OPTIONS] headerfile datafile")
+        print("Usage: ", sys.argv[0], " [OPTIONS] [-hd headerfile] datafile")
         print("""
   headerfile: The file from which you get the column names.
   datafile:   The file containing the data to be processed.
@@ -93,23 +93,22 @@ while len(sys.argv) > 2:
 try:
     datafilename = sys.argv[1]
 except:
-    print("Usage:", sys.argv[0], "[options] headerfile datafile")
+    print("Usage:", sys.argv[0], "[options] [-hd headerfile] datafile")
     print(error)
     sys.exit(1)
 
 # open input file
 headers, ifile = get_headers(datafilename, headerfilename)
 
-print(headers)
-
-for line in ifile:
-    print(line)
-    break
-
 
 # get school codes, throw them all into a list or dict
 # perhaps best to just iterate through the teacher file
 # and just pluck out the schools codes.  simple as that.
+schools = []
+colnum = headers.index('campus')
+for line in ifile:
+    schools.append(line[colnum])
+    print(schools[-1])
 
 # with the school codes in hand, now choose a subject
 # let's say Math
