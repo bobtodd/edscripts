@@ -107,8 +107,10 @@ headers, ifile = get_headers(datafilename, headerfilename)
 schools = []
 colnum = headers.index('campus')
 for line in ifile:
-    schools.append(line[colnum])
-    print(schools[-1])
+    idnum = line[colnum]
+    if idnum not in schools:
+        schools.append(line[colnum])
+        print(schools[-1])
 
 # with the school codes in hand, now choose a subject
 # let's say Math
