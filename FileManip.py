@@ -147,14 +147,17 @@ def get_csv_columns(infilename, headfilename=None):
   return headers, data
 
 def extract_sequential(groupfield, seqfield, infilename, headfilename=None):
-  """Extract rows sequentially that share a common property.
+  """From a CSV file, extract rows sequentially that share a common property.
+
+  The usage of this function is best illustrated by an
+  example:
 
   Suppose several rows of data correspond to one value of
   a particular property.  For example, the data for one
   student is spread over several rows.  These rows all
   share a "groupfield", here Student ID.  Suppose also
   that each student has another property, e.g. the value
-  of a variabel DISADV, and we only
+  of a variable DISADV, and we only
   want to keep in our output file those students who
   maintain a constant value of DISADV.  That is, if
   a given student's DISADV value changes, we remove *all*

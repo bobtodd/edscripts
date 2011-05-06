@@ -20,7 +20,7 @@ def get_headers(infilename, headfilename=None):
     """
     
     # open input file & header file (if different)
-    ifile           = csv.reader(open(  infilename, 'r'))  # open file for reading
+    ifile = csv.reader(open(  infilename, 'r'))  # open file for reading
     if headfilename:
         hbasename, hext = os.path.splitext(headfilename)
     
@@ -55,14 +55,16 @@ def get_headers(infilename, headfilename=None):
 # open files
 # default columns to be processed
 options = []
-headerfilename = None
+dheaderfilename = None
+theaderfilename = None
 outfilename = 'output.txt'
 error = "Use --help option for assistance"
+
 
 # check for options
 if len(sys.argv) > 1:
     if sys.argv[1] in ('-h', '-help', '--help'):
-        print("Usage: ", sys.argv[0], " [OPTIONS] [-hd headerfile] datafile")
+        print("Usage: ", sys.argv[0], " [OPTIONS] teacherfile datafile")
         print("""
   headerfile: The file from which you get the column names.
   datafile:   The file containing the data to be processed.
@@ -75,13 +77,16 @@ if len(sys.argv) > 1:
         sys.exit(1)
 
 # read options
-while len(sys.argv) > 2:
+while len(sys.argv) > 3:
     option = sys.argv[1]
     del sys.argv[1]
-    if option in ('-hd', '-head', '--header'):
-        headerfilename = sys.argv[1]
+    if option in ('-hd', '-hdata', '--headerdata'):
+        dheaderfilename = sys.argv[1]
         del sys.argv[1]
-    elif option in ('-o', '-oth', '--other'):
+    elif option in ('-ht', '-hteach', '--headerteacher'):
+        theaderfilename = sys.argv[1]
+        del sys.argv[1]
+    elif option in ('-o', '-oth', '--other'):   # Just a placeholder, useless for now
         options.append(sys.argv[1])
         del sys.argv[1]
     else:
@@ -91,25 +96,26 @@ while len(sys.argv) > 2:
 
 # get file names
 try:
-    datafilename = sys.argv[1]
+    teacherfilename = sys.argv[1]
+    datafilename    = sys.argv[2]
 except:
-    print("Usage:", sys.argv[0], "[options] [-hd headerfile] datafile")
+    print("Usage:", sys.argv[0], "[options] teacherfile datafile")
     print(error)
     sys.exit(1)
 
-# open input file
-headers, ifile = get_headers(datafilename, headerfilename)
+# open input file with student data
+dHeaders, dFile = get_headers(datafilename, dheaderfilename)
 
 
 # get school codes, throw them all into a list or dict
 # perhaps best to just iterate through the teacher file
 # and just pluck out the schools codes.  simple as that.
 schools = []
-colnum = headers.index('campus')
-for line in ifile:
+colnum = dHeaders.index('campus')
+for line in dFile:
     idnum = line[colnum]
     if idnum not in schools:
-        schools.append(line[colnum])
+        schools.append(idnum)
         print(schools[-1])
 
 # with the school codes in hand, now choose a subject
@@ -119,6 +125,39 @@ for line in ifile:
 # go through each teacher,
 # see if he teaches Math, and if so,
 # add his salary to a list associated with the school code
+tHeaders, tFile = get_headers(teacherfilename, theaderfilename)
+
+
+subjectNames = []      # each teacher teaches lots of subjects
+for title in tHeaders: # make a list of columns with subject names
+    if "SUBJECT AREA NAME" in title:
+        subjectNames.append(title)
+
+salaries = {}                 # dict to hold pairs "schoolID":[array of salaries]
+for idnum in schools:
+    salaries[idnum] = []
+
+count = 0
+for line in tFile:                 # look at each row in the teacher file
+    teachesMath = False
+    for subject in subjectNames:   # check the columns that contain the subjects taught
+        if count < 20:
+            print("Col index =", tHeaders.index(subject), "Line contents:", line[tHeaders.index(subject)])
+        if "math" in line[tHeaders.index(subject)].lower(): # if even one says "Math"
+            teachesMath = True                            # take note
+            if count < 20:
+                print("... found a Math teacher")
+            break
+    if teachesMath:
+        thisSchool = line[tHeaders.index("CAMPUS NUMBER")].strip()
+        thisSalary = float(line[tHeaders.index("BASE PAY")].strip())
+        if count < 20:
+            print("thisSchool:", thisSchool, "thisSalary:", thisSalary)
+        if thisSchool not in salaries.keys():
+            schools.append(thisSchool)
+            salaries[thisSchool] = []
+        salaries[thisSchool].append(thisSalary)
+    count += 1
 
 # so now we have, for each school code,
 # an associated list containing all the
@@ -127,8 +166,22 @@ for line in ifile:
 # average those salaries,
 # creating a dict, say, with school code as the key,
 # and average salary for Math teachers as the value
+avgSalaries = {}
+count = 0
+for idnum in salaries.keys():
+    money = salaries[idnum]
+    if count < 10:
+        print(idnum, "salaries:", salaries[idnum])
+    count += 1
+    avgSalaries[idnum] = sum(money) / len(money) if len(money) > 0 else None
 
 # that finishes the salary part of things
+count = 0
+for idnum in avgSalaries.keys():
+    print(idnum, ":", avgSalaries[idnum])
+    if count > 10:
+        break
+    count += 1
 
 # now on to the scores
 
