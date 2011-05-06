@@ -114,12 +114,22 @@ dHeaders, dFile = get_headers(datafilename, dheaderfilename)
 # get school codes, throw them all into a list or dict
 # perhaps best to just iterate through the teacher file
 # and just pluck out the schools codes.  simple as that.
+print("Getting school IDs:")
+
 schools = []
 colnum = dHeaders.index('campus')
+lineCount = 0
 for line in dFile:
     idnum = line[colnum]
-    if idnum not in schools:
-        schools.append(idnum)
+    # ideally we should only append idnum
+    # if it's not already in schools
+    # but that implies a search through the array
+    # for every ID we add: very inefficient!  And worse as the array grows!
+    # So we'll just have to live with repeats
+    schools.append(idnum)
+    if lineCount % 1000000 == 0:
+        print("\t", lineCount, "lines read from", datafilename)
+    lineCount += 1
 
 # with the school codes in hand, now choose a subject
 # let's say Math
@@ -137,10 +147,15 @@ for title in tHeaders: # make a list of columns with subject names
         subjectNames.append(title)
 
 salaries = {}                 # dict to hold pairs "schoolID":[array of salaries]
-for idnum in schools:
-    salaries[idnum] = []
+for idnum in schools:         # This is where we'll have to deal with repeats in schools
+    salaries[idnum] = []      # For a repeat, we just initialize salaries[idnum] to [] again
+                              # ... no big deal
+
+
+print("Getting Math teachers:")
 
 count = 0
+lineCount = 0
 for line in tFile:                 # look at each row in the teacher file
     teachesMath = False
     for subject in subjectNames:   # check the columns that contain the subjects taught
@@ -155,6 +170,9 @@ for line in tFile:                 # look at each row in the teacher file
             schools.append(thisSchool)
             salaries[thisSchool] = []
         salaries[thisSchool].append(thisSalary)
+    if lineCount % 1000000 == 0:
+        print("\t", lineCount, "lines read from", teacherfilename)
+    lineCount += 1
 
 print("Found", count, "Math teachers in file", teacherfilename, "...")
 
@@ -173,12 +191,12 @@ for idnum in salaries.keys():
 # that finishes the salary part of things
 
 # just a quick little sanity check
-count = 0
-for idnum in avgSalaries.keys():
-    print("School:", idnum, "Avg Salary:", avgSalaries[idnum])
-    if count > 10:
-        break
-    count += 1
+# count = 0
+# for idnum in avgSalaries.keys():
+#     print("School:", idnum, "Avg Salary:", avgSalaries[idnum])
+#     if count > 10:
+#         break
+#     count += 1
 
 # now on to the scores
 
@@ -190,33 +208,38 @@ for idnum in avgSalaries.keys():
 dHeaders, dFile = get_headers(datafilename, dheaderfilename)
 
 scores = {}
-for idnum in schools:
-    scores[idnum] = []
+for idnum in schools:      # again we'll just live with the repeats
+    scores[idnum] = []     # for a repeat, we just re-initialize scores[idnum] to []
+
+
+print("Getting Math scores:")
 
 count = 0
+lineCount = 0
 for line in dFile:                                        # go through each line in student data
     thisYear   = line[dHeaders.index("year")].strip()     # get the year for that score
     thisSchool = line[dHeaders.index("campus")].strip()   # get student's school ID
     scoreStr   = line[dHeaders.index("m_raw")].strip()
     thisScore  = float(scoreStr) if scoreStr != '' else None # get student's Math score
-    if count < 10:
-        print("thisSchool:", thisSchool, "thisScore:", thisScore, "thisYear:", thisYear)
-    if (thisYear == year or year == None) and thisScore != None:
+    if (thisYear == year or year is None) and (thisScore is not None):
         # If it's the year we want (or all years)
         # and there's a score
         if thisSchool not in scores.keys():               # make sure that school's on the list, and
             schools.append(thisSchool)
             scores[thisSchool] = []
         scores[thisSchool].append(thisScore)              # add the score to the list for that school
+    if lineCount % 1000000 == 0:
+        print("\t", lineCount, "lines read from", datafilename)
+    lineCount += 1
     count += 1
         
-count = 0
-for idnum in scores.keys():
-    if scores[idnum] != []:
-        print("School:", idnum, "Scores:", scores[idnum])
-        count += 1
-    if count > 10:
-        break
+# count = 0
+# for idnum in scores.keys():
+#     if scores[idnum] != []:
+#         print("School:", idnum, "Scores:", scores[idnum])
+#         count += 1
+#     if count > 10:
+#         break
 
 
 # average these scores,
@@ -228,13 +251,13 @@ for idnum in scores.keys():
     avgScores[idnum] = sum(results) / len(results) if len(results) > 0 else None
 
 # another quick little sanity check
-count = 0
-for idnum in avgScores.keys():
-    if scores[idnum] != []:
-        print("School:", idnum, "Avg Score:", avgScores[idnum])
-        count += 1
-    if count > 10:
-        break
+# count = 0
+# for idnum in avgScores.keys():
+#     if scores[idnum] != []:
+#         print("School:", idnum, "Avg Score:", avgScores[idnum])
+#         count += 1
+#     if count > 10:
+#         break
 
 
 # the UPSHOT:
@@ -251,10 +274,33 @@ for idnum in avgScores.keys():
 # Element 1   salary1 -> (schoolID) -> score1
 # etc.
 
+finalSalary = []
+finalScore  = []
+count = 0
+for idnum in avgSalaries.keys():                 # go through each school ID
+    if (avgSalaries[idnum] is not None) and \
+           (avgScores[idnum] is not None):       # if there's a salary & a score
+        finalSalary.append(avgSalaries[idnum])   # then tack them on the lists
+        finalScore.append(avgScores[idnum])
+    count += 1
+
+
 # order the lists according to the numeric order
 # of the salaries, if need be
 
 # output lists to file, List 1 as 1st column
 # List 2 as 2nd column
+oFile = open("../tmp/" + outfilename, "w")
+try:
+    assert len(finalSalary) == len(finalScore)
+except:
+    print("Uh oh, salary and score lists do not have equal length...")
+    sys.exit(1)
+
+for i in range(len(finalSalary)):
+    outString = str(finalSalary[i]) + ',' + str(finalScore[i]) + '\n'
+    oFile.write(outString)
+
+oFile.close()
 
 # done... use the output for regression, graphing, etc.
