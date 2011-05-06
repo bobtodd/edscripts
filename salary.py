@@ -55,6 +55,7 @@ def get_headers(infilename, headfilename=None):
 # open files
 # default columns to be processed
 options = []
+year = None
 dheaderfilename = None
 theaderfilename = None
 outfilename = 'output.txt'
@@ -86,6 +87,9 @@ while len(sys.argv) > 3:
     elif option in ('-ht', '-hteach', '--headerteacher'):
         theaderfilename = sys.argv[1]
         del sys.argv[1]
+    elif option in ('-y', '-yr', '--year'):
+        year = sys.argv[1]
+        del sys.argv[1]
     elif option in ('-o', '-oth', '--other'):   # Just a placeholder, useless for now
         options.append(sys.argv[1])
         del sys.argv[1]
@@ -116,7 +120,6 @@ for line in dFile:
     idnum = line[colnum]
     if idnum not in schools:
         schools.append(idnum)
-        print(schools[-1])
 
 # with the school codes in hand, now choose a subject
 # let's say Math
@@ -141,23 +144,19 @@ count = 0
 for line in tFile:                 # look at each row in the teacher file
     teachesMath = False
     for subject in subjectNames:   # check the columns that contain the subjects taught
-        if count < 20:
-            print("Col index =", tHeaders.index(subject), "Line contents:", line[tHeaders.index(subject)])
         if "math" in line[tHeaders.index(subject)].lower(): # if even one says "Math"
-            teachesMath = True                            # take note
-            if count < 20:
-                print("... found a Math teacher")
+            teachesMath = True                              # take note
+            count += 1
             break
     if teachesMath:
         thisSchool = line[tHeaders.index("CAMPUS NUMBER")].strip()
         thisSalary = float(line[tHeaders.index("BASE PAY")].strip())
-        if count < 20:
-            print("thisSchool:", thisSchool, "thisSalary:", thisSalary)
         if thisSchool not in salaries.keys():
             schools.append(thisSchool)
             salaries[thisSchool] = []
         salaries[thisSchool].append(thisSalary)
-    count += 1
+
+print("Found", count, "Math teachers in file", teacherfilename, "...")
 
 # so now we have, for each school code,
 # an associated list containing all the
@@ -167,18 +166,16 @@ for line in tFile:                 # look at each row in the teacher file
 # creating a dict, say, with school code as the key,
 # and average salary for Math teachers as the value
 avgSalaries = {}
-count = 0
 for idnum in salaries.keys():
     money = salaries[idnum]
-    if count < 10:
-        print(idnum, "salaries:", salaries[idnum])
-    count += 1
     avgSalaries[idnum] = sum(money) / len(money) if len(money) > 0 else None
 
 # that finishes the salary part of things
+
+# just a quick little sanity check
 count = 0
 for idnum in avgSalaries.keys():
-    print(idnum, ":", avgSalaries[idnum])
+    print("School:", idnum, "Avg Salary:", avgSalaries[idnum])
     if count > 10:
         break
     count += 1
@@ -190,10 +187,55 @@ for idnum in avgSalaries.keys():
 # stick these in a dict, so that the key is the
 # school code, and the value is a list of Math scores
 # for all the students in that school
+dHeaders, dFile = get_headers(datafilename, dheaderfilename)
+
+scores = {}
+for idnum in schools:
+    scores[idnum] = []
+
+count = 0
+for line in dFile:                                        # go through each line in student data
+    thisYear   = line[dHeaders.index("year")].strip()     # get the year for that score
+    thisSchool = line[dHeaders.index("campus")].strip()   # get student's school ID
+    scoreStr   = line[dHeaders.index("m_raw")].strip()
+    thisScore  = float(scoreStr) if scoreStr != '' else None # get student's Math score
+    if count < 10:
+        print("thisSchool:", thisSchool, "thisScore:", thisScore, "thisYear:", thisYear)
+    if (thisYear == year or year == None) and thisScore != None:
+        # If it's the year we want (or all years)
+        # and there's a score
+        if thisSchool not in scores.keys():               # make sure that school's on the list, and
+            schools.append(thisSchool)
+            scores[thisSchool] = []
+        scores[thisSchool].append(thisScore)              # add the score to the list for that school
+    count += 1
+        
+count = 0
+for idnum in scores.keys():
+    if scores[idnum] != []:
+        print("School:", idnum, "Scores:", scores[idnum])
+        count += 1
+    if count > 10:
+        break
+
 
 # average these scores,
 # creating a dict, with school code as key,
 # and average Math score as value
+avgScores = {}
+for idnum in scores.keys():
+    results = scores[idnum]
+    avgScores[idnum] = sum(results) / len(results) if len(results) > 0 else None
+
+# another quick little sanity check
+count = 0
+for idnum in avgScores.keys():
+    if scores[idnum] != []:
+        print("School:", idnum, "Avg Score:", avgScores[idnum])
+        count += 1
+    if count > 10:
+        break
+
 
 # the UPSHOT:
 # we have two dicts, whose key:value pairs look like
