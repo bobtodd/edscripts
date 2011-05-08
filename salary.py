@@ -56,6 +56,8 @@ def get_headers(infilename, headfilename=None):
 # default columns to be processed
 options = []
 year = None
+folder = None
+folderList = None
 dheaderfilename = None
 theaderfilename = None
 outfilename = 'output.txt'
@@ -90,6 +92,9 @@ while len(sys.argv) > 3:
     elif option in ('-y', '-yr', '--year'):
         year = sys.argv[1]
         del sys.argv[1]
+    elif option in ('-f', '-fold', '--folder'):
+        folder = sys.argv[1]
+        del sys.argv[1]
     elif option in ('-o', '-oth', '--other'):   # Just a placeholder, useless for now
         options.append(sys.argv[1])
         del sys.argv[1]
@@ -106,6 +111,9 @@ except:
     print("Usage:", sys.argv[0], "[options] teacherfile datafile")
     print(error)
     sys.exit(1)
+
+if folder is not None:
+    folderList = os.listdir(folder)
 
 # open input file with student data
 dHeaders, dFile = get_headers(datafilename, dheaderfilename)
@@ -134,47 +142,69 @@ for line in dFile:
 # with the school codes in hand, now choose a subject
 # let's say Math
 
-# open the teacher file
+# open the teacher file(s)
 # go through each teacher,
 # see if he teaches Math, and if so,
 # add his salary to a list associated with the school code
-tHeaders, tFile = get_headers(teacherfilename, theaderfilename)
+
+# first make a list of all the teacher files
+# we want to parse
+tFilenames = []
+if folder is not None:
+    print("Getting filenames for teacher data from", folder)
+    teacherBasename, teacherExt = os.path.splitext(teacherfilename)
+    tPattern = teacherBasename.strip('*').lstrip(folder)
+    for tFilename in folderList:
+        tBasename, tExt = os.path.splitext(tFilename)
+        if tPattern in tBasename:
+            tFilenames.append(tFilename)
+            print("\t", tFilename, "added to list...")
+else:
+    tFilenames.append(teacherfilename)
+    print("Single file for teacher data:", teacherfilename)
 
 
-subjectNames = []      # each teacher teaches lots of subjects
-for title in tHeaders: # make a list of columns with subject names
-    if "SUBJECT AREA NAME" in title:
-        subjectNames.append(title)
-
+# make a dict to store salaries
 salaries = {}                 # dict to hold pairs "schoolID":[array of salaries]
 for idnum in schools:         # This is where we'll have to deal with repeats in schools
     salaries[idnum] = []      # For a repeat, we just initialize salaries[idnum] to [] again
                               # ... no big deal
 
+# add data from each file, file by file
+for tFilename in tFilenames:
+    tHeaders, tFile = get_headers(folder + tFilename, theaderfilename)
 
-print("Getting Math teachers:")
 
-count = 0
-lineCount = 0
-for line in tFile:                 # look at each row in the teacher file
-    teachesMath = False
-    for subject in subjectNames:   # check the columns that contain the subjects taught
-        if "math" in line[tHeaders.index(subject)].lower(): # if even one says "Math"
-            teachesMath = True                              # take note
-            count += 1
-            break
-    if teachesMath:
-        thisSchool = line[tHeaders.index("CAMPUS NUMBER")].strip()
-        thisSalary = float(line[tHeaders.index("BASE PAY")].strip())
-        if thisSchool not in salaries.keys():
-            schools.append(thisSchool)
-            salaries[thisSchool] = []
-        salaries[thisSchool].append(thisSalary)
-    if lineCount % 1000000 == 0:
-        print("\t", lineCount, "lines read from", teacherfilename)
-    lineCount += 1
+    subjectNames = []      # each teacher teaches lots of subjects
+    for title in tHeaders: # make a list of columns with subject names
+        if "SUBJECT AREA NAME" in title:
+            subjectNames.append(title)
 
-print("Found", count, "Math teachers in file", teacherfilename, "...")
+
+
+    print("Getting Math teachers from", tFilename)
+
+    count = 0
+    lineCount = 0
+    for line in tFile:                 # look at each row in the teacher file
+        teachesMath = False
+        for subject in subjectNames:   # check the columns that contain the subjects taught
+            if "math" in line[tHeaders.index(subject)].lower(): # if even one says "Math"
+                teachesMath = True                              # take note
+                count += 1
+                break
+        if teachesMath:
+            thisSchool = line[tHeaders.index("CAMPUS NUMBER")].strip()
+            thisSalary = float(line[tHeaders.index("BASE PAY")].strip())
+            if thisSchool not in salaries.keys():
+                schools.append(thisSchool)
+                salaries[thisSchool] = []
+            salaries[thisSchool].append(thisSalary)
+        if lineCount % 1000000 == 0:
+            print("\t", lineCount, "lines read from", tFilename)
+        lineCount += 1
+
+    print("\t Found", count, "Math teachers in file", tFilename, "...")
 
 # so now we have, for each school code,
 # an associated list containing all the
