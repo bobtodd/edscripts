@@ -135,8 +135,8 @@ for tFilename in tFilenames:
     tHeaders, tFile = fm.get_headers(folder + tFilename, theaderfilename)
 
 
-    subjectNames = []      # each teacher teaches lots of subjects
-    for title in tHeaders: # make a list of columns with subject names
+    subjectNames = []                    # each teacher teaches lots of subjects
+    for title in tHeaders:               # make a list of columns with subject names
         if "SUBJECT AREA NAME" in title:
             subjectNames.append(title)
 
@@ -146,7 +146,7 @@ for tFilename in tFilenames:
 
     count = 0
     lineCount = 0
-    for line in tFile:                 # look at each row in the teacher file
+    for line in tFile:                 # look at each row in this teacher file
         teachesMath = False
         for subject in subjectNames:   # check the columns that contain the subjects taught
             if "math" in line[tHeaders.index(subject)].lower(): # if even one says "Math"
@@ -193,19 +193,16 @@ if single:                 # so create a list of schoolIDs to kill
 # creating a dict, say, with school code as the key,
 # and average salary for Math teachers as the value
 avgSalaries = {}
+countDeadbeats = 0
 for idnum in salaries.keys():
     money = salaries[idnum]
     avgSalaries[idnum] = sum(money) / len(money) if len(money) > 0 else None
+    if len(money) == 0:
+        countDeadbeats += 1
+
+print(countDeadbeats, "schools omitted for lack of salary...\n")
 
 # that finishes the salary part of things
-
-# just a quick little sanity check
-# count = 0
-# for idnum in avgSalaries.keys():
-#     print("School:", idnum, "Avg Salary:", avgSalaries[idnum])
-#     if count > 10:
-#         break
-#     count += 1
 
 # now on to the scores
 
@@ -221,7 +218,7 @@ for idnum in schools:      # again we'll just live with the repeats
     scores[idnum] = []     # for a repeat, we just re-initialize scores[idnum] to []
 
 
-print("Getting Math scores:")
+print("Getting", dColumn, "scores:")
 
 count = 0
 lineCount = 0
@@ -241,15 +238,6 @@ for line in dFile:                                        # go through each line
         print("\t", lineCount, "lines read from", datafilename)
     lineCount += 1
     count += 1
-        
-# count = 0
-# for idnum in scores.keys():
-#     if scores[idnum] != []:
-#         print("School:", idnum, "Scores:", scores[idnum])
-#         count += 1
-#     if count > 10:
-#         break
-
 
 # average these scores,
 # creating a dict, with school code as key,
@@ -258,16 +246,6 @@ avgScores = {}
 for idnum in scores.keys():
     results = scores[idnum]
     avgScores[idnum] = sum(results) / len(results) if len(results) > 0 else None
-
-# another quick little sanity check
-# count = 0
-# for idnum in avgScores.keys():
-#     if scores[idnum] != []:
-#         print("School:", idnum, "Avg Score:", avgScores[idnum])
-#         count += 1
-#     if count > 10:
-#         break
-
 
 # the UPSHOT:
 # we have two dicts, whose key:value pairs look like
@@ -283,31 +261,49 @@ for idnum in scores.keys():
 # Element 1   salary1 -> (schoolID) -> score1
 # etc.
 
-finalSalary = []
-finalScore  = []
-count = 0
+# actually, we should pack them into a dict
+# together with the schoolID as key, so that we
+# don't lose that information
+
+finalOutput = {}
+count       = 0
+countSalary = 0
+countScore  = 0
+countBoth   = 0
 for idnum in avgSalaries.keys():                 # go through each school ID
-    if (avgSalaries[idnum] is not None) and \
-           (avgScores[idnum] is not None):       # if there's a salary & a score
-        finalSalary.append(avgSalaries[idnum])   # then tack them on the lists
-        finalScore.append(avgScores[idnum])
-    count += 1
+    theSalary = avgSalaries[idnum]
+    theScore  = avgScores[idnum]
+    if theSalary is None:
+        countSalary += 1
+    if theScore is None:
+        countScore += 1
+    if theSalary is None and theScore is None:
+        countBoth += 1
+    if (theSalary is not None) and (theScore is not None):
+        # if there's a salary and a score
+        # tack them on
+        finalOutput[idnum] = {'avgSalary': theSalary, 'avgScore': theScore}
+        count += 1
+
+print(count, "school IDs added for output...")
+print("\t", countSalary, "schools omitted for lack of salary data...")
+print("\t", countScore, "schools omitted for lack of score data...")
+print("\t", countBoth, "schools omitted for lack of both pieces of data...")
 
 
-# order the lists according to the numeric order
-# of the salaries, if need be
-
-# output lists to file, List 1 as 1st column
-# List 2 as 2nd column
+# output to file
+# 1st column: School IDs
+# 2nd column: avgSalary
+# 3rd column: avgScore
 oFile = open("../tmp/" + outfilename, "w")
-try:
-    assert len(finalSalary) == len(finalScore)
-except:
-    print("Uh oh, salary and score lists do not have equal length...")
-    sys.exit(1)
 
-for i in range(len(finalSalary)):
-    outString = str(finalSalary[i]) + ',' + str(finalScore[i]) + '\n'
+for idnum in finalOutput.keys():
+    outString  = idnum
+    outString += ','
+    outString += str(finalOutput[idnum]['avgSalary'])
+    outString += ','
+    outString += str(finalOutput[idnum]['avgScore'])
+    outString += '\n'
     oFile.write(outString)
 
 oFile.close()
