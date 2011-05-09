@@ -90,6 +90,53 @@ def extract_chunk(infilename, outfilename, begin, end, period = None):
 
 import sys, csv
 
+def get_headers(infilename, headfilename=None):
+    """Get column names.
+
+    This function plucks out the names of columns in a CSV file
+    either from the file itself or from a separate, designated
+    header file.
+
+    Returns a tuple
+        (headers, ifile),
+    where headers is a list of column titles, and ifile is a
+    csv file object containing the input file.
+    """
+    
+    # open input file & header file (if different)
+    ifile = csv.reader(open(  infilename, 'r'))  # open file for reading
+    if headfilename:
+        hbasename, hext = os.path.splitext(headfilename)
+    
+    # get the column headers
+    # from this file or a separate file
+    headers = []
+    if headfilename:
+        if hext == '.csv':
+            hfile    = csv.reader(open(headfilename, 'r'))  # open file for reading
+            for line in hfile:
+                headers += line                   # column headers may be spread over several lines
+        else:
+            hfile = open(headfilename, 'r')
+            for line in hfile:
+                headers += extract_fields(line)
+            hfile.close()
+    else:
+        for line in ifile:
+            headers += line
+            break                             # should only have header in first line
+  
+    # get rid of leading and trailing whitespace (including newlines)
+    # in each column label
+    for i in range(len(headers)):
+        headers[i] = headers[i].strip()                # in case headers are split over multiple lines
+    if '' in headers:
+        headers.pop(headers.index(''))
+    
+    return headers, ifile
+
+
+
 def get_csv_columns(infilename, headfilename=None):
   """Take data from CSV file and read into a dict of columns.
 

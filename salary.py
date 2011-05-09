@@ -6,50 +6,6 @@
 import sys, os, csv
 import FileManip as fm
 
-def get_headers(infilename, headfilename=None):
-    """Get column names.
-
-    This function plucks out the names of columns in a CSV file
-    either from the file itself or from a separate, designated
-    header file.
-
-    Returns a tuple
-        (headers, ifile),
-    where headers is a list of column titles, and ifile is a
-    csv file object containing the input file.
-    """
-    
-    # open input file & header file (if different)
-    ifile = csv.reader(open(  infilename, 'r'))  # open file for reading
-    if headfilename:
-        hbasename, hext = os.path.splitext(headfilename)
-    
-    # get the column headers
-    # from this file or a separate file
-    headers = []
-    if headfilename:
-        if hext == '.csv':
-            hfile    = csv.reader(open(headfilename, 'r'))  # open file for reading
-            for line in hfile:
-                headers += line                   # column headers may be spread over several lines
-        else:
-            hfile = open(headfilename, 'r')
-            for line in hfile:
-                headers += fm.extract_fields(line)
-            hfile.close()
-    else:
-        for line in ifile:
-            headers += line
-            break                             # should only have header in first line
-  
-    # get rid of leading and trailing whitespace (including newlines)
-    # in each column label
-    for i in range(len(headers)):
-        headers[i] = headers[i].strip()                # in case headers are split over multiple lines
-    if '' in headers:
-        headers.pop(headers.index(''))
-    
-    return headers, ifile
 
 
 # open files
@@ -57,6 +13,7 @@ def get_headers(infilename, headfilename=None):
 options = []
 single = False
 year = None
+dColumn = 'm_raw'
 folder = None
 folderList = None
 dheaderfilename = None
@@ -90,6 +47,9 @@ while len(sys.argv) > 3:
     elif option in ('-ht', '-hteach', '--headerteacher'):
         theaderfilename = sys.argv[1]
         del sys.argv[1]
+    elif option in ('-c', '-col', '--column'):
+        dColumn = sys.argv[1]
+        del sys.argv[1]
     elif option in ('-y', '-yr', '--year'):
         year = sys.argv[1]
         del sys.argv[1]
@@ -116,7 +76,7 @@ if folder is not None:
     folderList = os.listdir(folder)
 
 # open input file with student data
-dHeaders, dFile = get_headers(datafilename, dheaderfilename)
+dHeaders, dFile = fm.get_headers(datafilename, dheaderfilename)
 
 
 # get school codes, throw them all into a list or dict
@@ -172,7 +132,7 @@ for idnum in schools:         # This is where we'll have to deal with repeats in
 
 # add data from each file, file by file
 for tFilename in tFilenames:
-    tHeaders, tFile = get_headers(folder + tFilename, theaderfilename)
+    tHeaders, tFile = fm.get_headers(folder + tFilename, theaderfilename)
 
 
     subjectNames = []      # each teacher teaches lots of subjects
@@ -254,7 +214,7 @@ for idnum in salaries.keys():
 # stick these in a dict, so that the key is the
 # school code, and the value is a list of Math scores
 # for all the students in that school
-dHeaders, dFile = get_headers(datafilename, dheaderfilename)
+dHeaders, dFile = fm.get_headers(datafilename, dheaderfilename)
 
 scores = {}
 for idnum in schools:      # again we'll just live with the repeats
@@ -268,7 +228,7 @@ lineCount = 0
 for line in dFile:                                        # go through each line in student data
     thisYear   = line[dHeaders.index("year")].strip()     # get the year for that score
     thisSchool = line[dHeaders.index("campus")].strip()   # get student's school ID
-    scoreStr   = line[dHeaders.index("m_raw")].strip()
+    scoreStr   = line[dHeaders.index(dColumn)].strip()
     thisScore  = float(scoreStr) if scoreStr != '' else None # get student's Math score
     if (thisYear == year or year is None) and (thisScore is not None):
         # If it's the year we want (or all years)
