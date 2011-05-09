@@ -55,6 +55,7 @@ def get_headers(infilename, headfilename=None):
 # open files
 # default columns to be processed
 options = []
+single = False
 year = None
 folder = None
 folderList = None
@@ -95,9 +96,8 @@ while len(sys.argv) > 3:
     elif option in ('-f', '-fold', '--folder'):
         folder = sys.argv[1]
         del sys.argv[1]
-    elif option in ('-o', '-oth', '--other'):   # Just a placeholder, useless for now
-        options.append(sys.argv[1])
-        del sys.argv[1]
+    elif option in ('-s', '-sing', '--single'):
+        single = True
     else:
         print(sys.argv[0] + ":",'invalid option', option)
         print(error)
@@ -209,6 +209,25 @@ for tFilename in tFilenames:
 # so now we have, for each school code,
 # an associated list containing all the
 # Math teacher salaries for that code
+
+# Single Teachers:
+# If we only want data for schools with one Math teacher,
+# then we should delete those keys (school IDs) where
+# the list of salaries has more than one entry
+count = 0
+killList = []              # We can't modify the dict as we loop over it
+if single:                 # so create a list of schoolIDs to kill
+    print("\nRemoving schools with more than one Math teacher...")
+    for schoolID in salaries.keys():
+        if len(salaries[schoolID]) > 1:
+            killList.append(schoolID)
+            count += 1
+    for idnum in killList:
+        salaries.pop(idnum)
+    print("\t", count, "schools removed from data...\n")
+
+# Now the rest of the manipulations should work
+# whether there's one salary or more for each school
 
 # average those salaries,
 # creating a dict, say, with school code as the key,
