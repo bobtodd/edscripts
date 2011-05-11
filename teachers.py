@@ -13,6 +13,7 @@ options = []
 single = False
 year = None
 tColumn = "BASE PAY"
+sColumn = "DISTRICT CATEGORY NAME"
 dColumn = 'm_raw'
 folder = None
 folderList = None
@@ -49,6 +50,13 @@ if len(sys.argv) > 1:
               to extract data.
 
               Default: "BASE PAY"
+
+    -sc, -scol, --scolumn:
+              Follow this option with the name of the
+              column in the TEA files from which you wish
+              to extract school data.
+
+              Default: "DISTRICT CATEGORY NAME"
 
     -c, -col, --column:
               Follow this option with the name of the
@@ -102,6 +110,9 @@ while len(sys.argv) > 3:
         del sys.argv[1]
     elif option in ('-t', '-tcol', '--tcolumn'):
         tColumn = sys.argv[1]
+        del sys.argv[1]
+    elif option in ('-sc', '-scol', '--scolumn'):
+        sColumn = sys.argv[1]
         del sys.argv[1]
     elif option in ('-c', '-col', '--column'):
         dColumn = sys.argv[1]
@@ -186,8 +197,9 @@ else:
 teachers = {}
 for idnum in schools:         # This is where we'll have to deal with repeats in schools
     teachers[idnum] = {}               # For a repeat, re-initialize salaries[idnum] to {}
-    teachers[idnum]['salaries'] = []   # as well as teachers[]['salaries']
+    teachers[idnum]['salaries']   = [] # as well as teachers[]['salaries']
     teachers[idnum]['experience'] = [] # etc.
+    teachers[idnum]['code']       = ''
 
 # add data from each file, file by file
 for tFilename in tFilenames:
@@ -214,15 +226,18 @@ for tFilename in tFilenames:
                 break
         if teachesMath:
             thisSchool     = line[tHeaders.index("CAMPUS NUMBER")].strip()
-            thisSalary     = float(line[tHeaders.index("BASE PAY")].strip())
+            thisSalary     = float(line[tHeaders.index(tColumn)].strip())
             thisExperience = float(line[tHeaders.index("EXPERIENCE")].strip())
+            thisCode       = line[tHeaders.index(sColumn)].strip()
             if thisSchool not in teachers.keys():
                 schools.append(thisSchool)
                 teachers[thisSchool] = {}
-                teachers[thisSchool]['salaries'] = []
+                teachers[thisSchool]['salaries']   = []
                 teachers[thisSchool]['experience'] = []
+                teachers[thisSchool]['code']       = ''
             teachers[thisSchool]['salaries'].append(thisSalary)
             teachers[thisSchool]['experience'].append(thisExperience)
+            teachers[thisSchool]['code'] = thisCode
         if lineCount % 1000000 == 0:
             print("\t", lineCount, "lines read from", tFilename)
         lineCount += 1
@@ -263,10 +278,12 @@ countDeadbeats = 0
 for idnum in teachers.keys():
     money      = teachers[idnum]['salaries']
     experience = teachers[idnum]['experience']
+    code       = teachers[idnum]['code']
 
     avgTeachers[idnum] = {}
     avgTeachers[idnum]['salaries'] = sum(money) / len(money) if len(money) > 0 else None
     avgTeachers[idnum]['experience'] = sum(experience) / len(experience) if len(experience) > 0 else None
+    avgTeachers[idnum]['code'] = code
     if len(money) == 0:
         countDeadbeats += 1
 
@@ -347,6 +364,7 @@ countSalary = 0
 countScore  = 0
 countBoth   = 0
 for idnum in avgTeachers.keys():                 # go through each school ID
+    theCode       = avgTeachers[idnum]['code']
     theSalary     = avgTeachers[idnum]['salaries']
     theExperience = avgTeachers[idnum]['experience']
     theScore      = avgScores[idnum]
@@ -360,6 +378,7 @@ for idnum in avgTeachers.keys():                 # go through each school ID
         # if there's a salary and a score
         # tack them on
         finalOutput[idnum] = {
+            'code': theCode,
             'avgSalary': theSalary,
             'avgExperience': theExperience,
             'avgScore': theScore
@@ -379,8 +398,24 @@ print("\t", countBoth, "schools omitted for lack of salary and score data...")
 # 4th column: avgScore
 oFile = open("../tmp/" + outfilename, "w")
 
+titles = ''
+titles += 'school_id'
+titles += ','
+titles += 'district_code'
+titles += ','
+titles += 'avg_salary'
+titles += ','
+titles += 'avg_experience'
+titles += ','
+titles += 'avg_score'
+titles += '\n'
+
+oFile.write(titles)
+
 for idnum in finalOutput.keys():
     outString  = idnum
+    outString += ','
+    outString += finalOutput[idnum]['code']
     outString += ','
     outString += str(finalOutput[idnum]['avgSalary'])
     outString += ','
