@@ -21,18 +21,71 @@ theaderfilename = None
 outfilename = 'output.txt'
 error = "Use --help option for assistance"
 
-
 # check for options
 if len(sys.argv) > 1:
     if sys.argv[1] in ('-h', '-help', '--help'):
         print("Usage: ", sys.argv[0], " [OPTIONS] teacherfile datafile")
         print("""
-  headerfile: The file from which you get the column names.
-  datafile:   The file containing the data to be processed.
+  teacherfile: The file from which you get the teacher data.
+  datafile:    The file containing the student scores.
 
   Valid OPTIONS:
     -h, -help, --help:
-              Evidently you've already discovered this one
+              Evidently you've already discovered this one.
+
+    -hd, -hdata, --headerdata:
+              Follow this option with the name of the file
+              containing the column titles for TAKS data,
+              if located in a separate file.
+
+    -ht, -hteach, --headerteacher:
+              Follow this option with the name of the file
+              containing the column titles for TEA data,
+              if located in a separate file.
+
+    -t, -tcol, --tcolumn:
+              Follow this option with the name of the
+              column in the TEA files from which you wish
+              to extract data.
+
+              Default: "BASE PAY"
+
+    -c, -col, --column:
+              Follow this option with the name of the
+              column in the TAKS file from which you wish
+              to extract data.
+
+              Default: "m_raw"
+
+    -y, -yr, --year:
+              Follow this option with the year containing
+              the data which you would like to extract
+              from the TAKS file.
+
+    -s, -sing, --single:
+              Use this option if you wish the program to
+              extract only data for those schools where
+              there is a single Math teacher.  You do
+              not need to follow this parameter with
+              anything.
+
+    -f, -fold, --folder:
+              Follow this option with the name of the
+              folder containing the TEA files from which
+              you wish to extract data.
+
+              NOTE: The files should have roughly the
+              same form, differing by index.  For example:
+              TCHM01.csv, TCHM02.csv, etc.  In this case,
+              when you pass the TEA filename as a (non-
+              optional) parameter to the program, you
+              should replace the varying elements by '*',
+              as in TCHM*.csv.  Make sure you enclose
+              this expression in quotes: 'TCHM*.csv'
+
+    Example usage (all one line):
+
+    ./teachers.py -s -y 2007 -col m_ssc -hd headers.csv -f ../data/ 'TCHM*.csv' TAKS.csv
 
               """)
         sys.exit(1)
@@ -275,7 +328,7 @@ for idnum in scores.keys():
 # and
 # schoolID:avgTAKSscoreForMath
 
-# create three lists, one of average salaries, the other of
+# create three lists, one of average salaries, another of
 # average experience, and the last of associated
 # average Math scores, linking via
 # schoolID:
