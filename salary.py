@@ -2,37 +2,98 @@
 
 # salary.py
 # A script to arrange data in the form teacher-salary vs. student-grades
+# or the form teacher-experience vs. student-grades
 
 import sys, os, csv
 import FileManip as fm
-
-
 
 # open files
 # default columns to be processed
 options = []
 single = False
 year = None
+tColumn = "BASE PAY"
+sColumn = "DISTRICT CATEGORY NAME"
 dColumn = 'm_raw'
 folder = None
 folderList = None
 dheaderfilename = None
 theaderfilename = None
-outfilename = 'output.txt'
+outfilename = 'output_avg.txt'
 error = "Use --help option for assistance"
-
 
 # check for options
 if len(sys.argv) > 1:
     if sys.argv[1] in ('-h', '-help', '--help'):
         print("Usage: ", sys.argv[0], " [OPTIONS] teacherfile datafile")
         print("""
-  headerfile: The file from which you get the column names.
-  datafile:   The file containing the data to be processed.
+  teacherfile: The file from which you get the teacher data.
+  datafile:    The file containing the student scores.
 
   Valid OPTIONS:
     -h, -help, --help:
-              Evidently you've already discovered this one
+              Evidently you've already discovered this one.
+
+    -hd, -hdata, --headerdata:
+              Follow this option with the name of the file
+              containing the column titles for TAKS data,
+              if located in a separate file.
+
+    -ht, -hteach, --headerteacher:
+              Follow this option with the name of the file
+              containing the column titles for TEA data,
+              if located in a separate file.
+
+    -t, -tcol, --tcolumn:
+              Follow this option with the name of the
+              column in the TEA files from which you wish
+              to extract data.
+
+              Default: "BASE PAY"
+
+    -sc, -scol, --scolumn:
+              Follow this option with the name of the
+              column in the TEA files from which you wish
+              to extract school data.
+
+              Default: "DISTRICT CATEGORY NAME"
+
+    -c, -col, --column:
+              Follow this option with the name of the
+              column in the TAKS file from which you wish
+              to extract data.
+
+              Default: "m_raw"
+
+    -y, -yr, --year:
+              Follow this option with the year containing
+              the data which you would like to extract
+              from the TAKS file.
+
+    -i, -indiv, --individual:
+              Use this option if you wish the program to
+              extract only data for those schools where
+              there is a single, individual Math teacher.
+              You do not need to follow this parameter
+              with anything.
+
+    -f, -fold, --folder:
+              Follow this option with the name of the
+              folder containing the TEA files from which
+              you wish to extract data.
+
+              NOTE: The files should have roughly the
+              same form, differing by index.  For example:
+              TCHM01.csv, TCHM02.csv, etc.  In this case,
+              when you pass the TEA filename as a (non-
+              optional) parameter to the program, you
+              should replace the varying elements by '*',
+              as in TCHM*.csv.  Make sure you enclose
+              this expression in quotes: 'TCHM*.csv'
+
+    Example usage (all one line):
+
+    ./teachers.py -i -y 2007 -col m_ssc -hd headers.csv -f ../data/ 'TCHM*.csv' TAKS.csv
 
               """)
         sys.exit(1)
@@ -47,6 +108,12 @@ while len(sys.argv) > 3:
     elif option in ('-ht', '-hteach', '--headerteacher'):
         theaderfilename = sys.argv[1]
         del sys.argv[1]
+    elif option in ('-t', '-tcol', '--tcolumn'):
+        tColumn = sys.argv[1]
+        del sys.argv[1]
+    elif option in ('-sc', '-scol', '--scolumn'):
+        sColumn = sys.argv[1]
+        del sys.argv[1]
     elif option in ('-c', '-col', '--column'):
         dColumn = sys.argv[1]
         del sys.argv[1]
@@ -56,8 +123,9 @@ while len(sys.argv) > 3:
     elif option in ('-f', '-fold', '--folder'):
         folder = sys.argv[1]
         del sys.argv[1]
-    elif option in ('-s', '-sing', '--single'):
+    elif option in ('-i', '-indiv', '--individual'):
         single = True
+        outfilename = 'output_indiv.txt'
     else:
         print(sys.argv[0] + ":",'invalid option', option)
         print(error)
@@ -106,6 +174,7 @@ for line in dFile:
 # go through each teacher,
 # see if he teaches Math, and if so,
 # add his salary to a list associated with the school code
+# and add his experience to another list for that code
 
 # first make a list of all the teacher files
 # we want to parse
@@ -124,11 +193,14 @@ else:
     print("Single file for teacher data:", teacherfilename)
 
 
-# make a dict to store salaries
-salaries = {}                 # dict to hold pairs "schoolID":[array of salaries]
+# make a dict of dicts to store salaries and more
+# dict to hold groups "schoolID":[array of salaries], [array of yrs experience]
+teachers = {}
 for idnum in schools:         # This is where we'll have to deal with repeats in schools
-    salaries[idnum] = []      # For a repeat, we just initialize salaries[idnum] to [] again
-                              # ... no big deal
+    teachers[idnum] = {}               # For a repeat, re-initialize salaries[idnum] to {}
+    teachers[idnum]['salaries']   = [] # as well as teachers[]['salaries']
+    teachers[idnum]['experience'] = [] # etc.
+    teachers[idnum]['code']       = ''
 
 # add data from each file, file by file
 for tFilename in tFilenames:
@@ -154,12 +226,19 @@ for tFilename in tFilenames:
                 count += 1
                 break
         if teachesMath:
-            thisSchool = line[tHeaders.index("CAMPUS NUMBER")].strip()
-            thisSalary = float(line[tHeaders.index("BASE PAY")].strip())
-            if thisSchool not in salaries.keys():
+            thisSchool     = line[tHeaders.index("CAMPUS NUMBER")].strip()
+            thisSalary     = float(line[tHeaders.index(tColumn)].strip())
+            thisExperience = float(line[tHeaders.index("EXPERIENCE")].strip())
+            thisCode       = line[tHeaders.index(sColumn)].strip()
+            if thisSchool not in teachers.keys():
                 schools.append(thisSchool)
-                salaries[thisSchool] = []
-            salaries[thisSchool].append(thisSalary)
+                teachers[thisSchool] = {}
+                teachers[thisSchool]['salaries']   = []
+                teachers[thisSchool]['experience'] = []
+                teachers[thisSchool]['code']       = ''
+            teachers[thisSchool]['salaries'].append(thisSalary)
+            teachers[thisSchool]['experience'].append(thisExperience)
+            teachers[thisSchool]['code'] = thisCode
         if lineCount % 1000000 == 0:
             print("\t", lineCount, "lines read from", tFilename)
         lineCount += 1
@@ -169,6 +248,8 @@ for tFilename in tFilenames:
 # so now we have, for each school code,
 # an associated list containing all the
 # Math teacher salaries for that code
+# and all the years of experience for
+# Math teachers for the same code
 
 # Single Teachers:
 # If we only want data for schools with one Math teacher,
@@ -178,31 +259,42 @@ count = 0
 killList = []              # We can't modify the dict as we loop over it
 if single:                 # so create a list of schoolIDs to kill
     print("\nRemoving schools with more than one Math teacher...")
-    for schoolID in salaries.keys():
-        if len(salaries[schoolID]) > 1:
+    for schoolID in teachers.keys():
+        if len(teachers[schoolID]['salaries']) > 1:
             killList.append(schoolID)
             count += 1
     for idnum in killList:
-        salaries.pop(idnum)
+        teachers.pop(idnum)
     print("\t", count, "schools removed from data...\n")
 
 # Now the rest of the manipulations should work
 # whether there's one salary or more for each school
 
-# average those salaries,
+# average those salaries and years of experience,
 # creating a dict, say, with school code as the key,
-# and average salary for Math teachers as the value
-avgSalaries = {}
+# and average salary for Math teachers as one value
+# and the average experience as the other
+avgTeachers = {}
 countDeadbeats = 0
-for idnum in salaries.keys():
-    money = salaries[idnum]
-    avgSalaries[idnum] = sum(money) / len(money) if len(money) > 0 else None
+for idnum in teachers.keys():
+    money      = teachers[idnum]['salaries']
+    experience = teachers[idnum]['experience']
+    code       = teachers[idnum]['code']
+
+    avgTeachers[idnum] = {}
+    avgTeachers[idnum]['salaries'] = sum(money) / len(money) if len(money) > 0 else None
+    avgTeachers[idnum]['experience'] = sum(experience) / len(experience) if len(experience) > 0 else None
+    avgTeachers[idnum]['code'] = code
     if len(money) == 0:
         countDeadbeats += 1
 
+# Recall that the dict 'teachers' was initialized
+# with all the schoolIDs from the TAKS data.
+# If the files used for the TEA data don't include
+# all schools, then many 'teacher' keys will be eliminated
 print(countDeadbeats, "schools omitted for lack of salary...\n")
 
-# that finishes the salary part of things
+# that finishes the salary and experience part of things
 
 # now on to the scores
 
@@ -248,17 +340,19 @@ for idnum in scores.keys():
     avgScores[idnum] = sum(results) / len(results) if len(results) > 0 else None
 
 # the UPSHOT:
-# we have two dicts, whose key:value pairs look like
-# schoolID:avgMathTeacherSalary
+# we have some dicts, whose key:value pairs look roughly
+# schoolID:avgMathTeacherSalary,
+# schoolID:avgMathTeacherExperience,
 # and
 # schoolID:avgTAKSscoreForMath
 
-# create two lists, one of average salaries, the other of
-# associated Math average Math scores, linking via
+# create three lists, one of average salaries, another of
+# average experience, and the last of associated
+# average Math scores, linking via
 # schoolID:
-#             List 1                   List 2
-# Element 0   salary0 -> (schoolID) -> score0
-# Element 1   salary1 -> (schoolID) -> score1
+#             List 1                   List 2                       List 3
+# Element 0   salary0 -> (schoolID) -> experience0 -> (schoolID) -> score0
+# Element 1   salary1 -> (schoolID) -> experience1 -> (schoolID) -> score1
 # etc.
 
 # actually, we should pack them into a dict
@@ -270,9 +364,11 @@ count       = 0
 countSalary = 0
 countScore  = 0
 countBoth   = 0
-for idnum in avgSalaries.keys():                 # go through each school ID
-    theSalary = avgSalaries[idnum]
-    theScore  = avgScores[idnum]
+for idnum in avgTeachers.keys():                 # go through each school ID
+    theCode       = avgTeachers[idnum]['code']
+    theSalary     = avgTeachers[idnum]['salaries']
+    theExperience = avgTeachers[idnum]['experience']
+    theScore      = avgScores[idnum]
     if theSalary is None:
         countSalary += 1
     if theScore is None:
@@ -282,25 +378,49 @@ for idnum in avgSalaries.keys():                 # go through each school ID
     if (theSalary is not None) and (theScore is not None):
         # if there's a salary and a score
         # tack them on
-        finalOutput[idnum] = {'avgSalary': theSalary, 'avgScore': theScore}
+        finalOutput[idnum] = {
+            'code': theCode,
+            'avgSalary': theSalary,
+            'avgExperience': theExperience,
+            'avgScore': theScore
+        }
         count += 1
 
 print(count, "school IDs added for output...")
 print("\t", countSalary, "schools omitted for lack of salary data...")
 print("\t", countScore, "schools omitted for lack of score data...")
-print("\t", countBoth, "schools omitted for lack of both pieces of data...")
+print("\t", countBoth, "schools omitted for lack of salary and score data...")
 
 
 # output to file
 # 1st column: School IDs
 # 2nd column: avgSalary
-# 3rd column: avgScore
+# 3rd column: avgExperience
+# 4th column: avgScore
 oFile = open("../tmp/" + outfilename, "w")
+
+titles = ''
+titles += 'school_id'
+titles += ','
+titles += 'district_code'
+titles += ','
+titles += 'avg_salary'
+titles += ','
+titles += 'avg_experience'
+titles += ','
+titles += 'avg_score'
+titles += '\n'
+
+oFile.write(titles)
 
 for idnum in finalOutput.keys():
     outString  = idnum
     outString += ','
+    outString += finalOutput[idnum]['code']
+    outString += ','
     outString += str(finalOutput[idnum]['avgSalary'])
+    outString += ','
+    outString += str(finalOutput[idnum]['avgExperience'])
     outString += ','
     outString += str(finalOutput[idnum]['avgScore'])
     outString += '\n'

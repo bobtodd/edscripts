@@ -19,7 +19,7 @@ folder = None
 folderList = None
 dheaderfilename = None
 theaderfilename = None
-outfilename = 'output.txt'
+outfilename = 'output_avg.txt'
 error = "Use --help option for assistance"
 
 # check for options
@@ -70,12 +70,12 @@ if len(sys.argv) > 1:
               the data which you would like to extract
               from the TAKS file.
 
-    -s, -sing, --single:
+    -i, -indiv, --individual:
               Use this option if you wish the program to
               extract only data for those schools where
-              there is a single Math teacher.  You do
-              not need to follow this parameter with
-              anything.
+              there is a single, individual Math teacher.
+              You do not need to follow this parameter
+              with anything.
 
     -f, -fold, --folder:
               Follow this option with the name of the
@@ -93,7 +93,7 @@ if len(sys.argv) > 1:
 
     Example usage (all one line):
 
-    ./teachers.py -s -y 2007 -col m_ssc -hd headers.csv -f ../data/ 'TCHM*.csv' TAKS.csv
+    ./teachers.py -i -y 2007 -col m_ssc -hd headers.csv -f ../data/ 'TCHM*.csv' TAKS.csv
 
               """)
         sys.exit(1)
@@ -123,8 +123,9 @@ while len(sys.argv) > 3:
     elif option in ('-f', '-fold', '--folder'):
         folder = sys.argv[1]
         del sys.argv[1]
-    elif option in ('-s', '-sing', '--single'):
+    elif option in ('-i', '-indiv', '--individual'):
         single = True
+        outfilename = 'output_indiv.txt'
     else:
         print(sys.argv[0] + ":",'invalid option', option)
         print(error)
